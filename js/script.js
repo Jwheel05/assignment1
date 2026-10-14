@@ -23,20 +23,26 @@ const svg = d3.select('#vis')
     .attr('transform', `translate(${margin.left},${margin.top})`);
 
 function init(){
-    d3.csv("./data/gapminder_subset.csv", 
+    d3.csv("./data/weather.csv", 
     // this is the callback function, applied to each item in the array
     function(d){
         return {  
-        // Besides converting the types, we also simpilify the variable names here. 
-        country: d.country,
-        continent: d.continent,
-        year: +d.year, // using + to convert to numbers; same below
-        lifeExp: +d.life_expectancy, 
-        income: +d.income_per_person, 
-        gdp: +d.gdp_per_capita, 
-        childDeaths: +d.number_of_child_deaths,
-        // Your turn: 
-        population: +d.population
+        // Besides converting the types, we also simpilify the variable names here.
+            station: d.station,
+            state: d.state,
+            lat: +d.latitude,
+            long: +d.longitude,
+            elevation: +d.elevation,
+            date: d.date,
+            tmin: +d.TMIN, // min temp
+            tmax: +d.TMAX, // max temp
+            tavg: +d.TAVG, // avg temp
+            awnd: +d.AWND, // avg wind
+            wdf5: +d.WDF5, // wind direction in degrees
+            wsf5: +d.WSF5, // fastest wind speed
+            snow: +d.SNOW, // snowfall 
+            snwd: +d.SNWD, // snow already on ground
+            prcp: +d.PRCP // precipation
      }
     })
     .then(data => {
@@ -53,6 +59,12 @@ function init(){
         })
     .catch(error => console.error('Error loading data:', error));
 }
+
+window.addEventListener("load", init);
+
+// Commenting everything out from here on to check data
+/*
+
 
 // Here’s what each function is responsible for:
 
@@ -269,3 +281,4 @@ svg.append('text')
     .attr('y', -margin.left + 15)
     .style('text-anchor', 'middle')
     .text('count'); */
+
