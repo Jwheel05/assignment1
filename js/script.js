@@ -1,284 +1,415 @@
-// Setting the margins
-const margin = {top: 40, right: 40, bottom: 40, left: 60};
-const width = 600 - margin.left - margin.right;
-const height = 400 - margin.top - margin.bottom;
 
-let allData = []
-let xVar = 'income', yVar = 'lifeExp', sizeVar = 'population', targetYear = 2000
-let xScale, yScale, sizeScale
+ // CMSC471 Assignment 1 — Weather Explorer
+ // State and station selection, temperature comparison, precipitation, and tooltips
 
-const continents = ['Africa', 'Asia', 'Oceania', 'Americas', 'Europe']
-const colorScale = d3.scaleOrdinal(continents, d3.schemeSet2); // d3.schemeSet2 is a set of predefined colors.
+ const margin = { top: 35, right: 22, bottom: 48, left: 65 };
+ const W = 1000, H = 360;
+ const innerW = W - margin.left - margin.right;
+ const innerH = H - margin.top - margin.bottom;
 
-const options = ['income', 'lifeExp', 'gdp', 'population', 'childDeaths']
+ const palette = ['#2468ad', '#e07a32'];
 
-const t = 1000; // 1000ms = 1 second
+ let allData = [];
+ let byState = new Map();
+ let byStation = new Map();
+ let selectedRange = null;
 
-// Create SVG
-const svg = d3.select('#vis')
-    .append('svg')
-    .attr('width', width + margin.left + margin.right)
-    .attr('height', height + margin.top + margin.bottom)
-    .append('g')
-    .attr('transform', `translate(${margin.left},${margin.top})`);
+ const fmt = d3.timeFormat('%b %d, %Y');
+ const monthFmt = d3.timeFormat('%b');
+ const tooltip = d3.select('#tooltip');
 
-function init(){
-    d3.csv("./data/weather.csv", 
-    // this is the callback function, applied to each item in the array
-    function(d){
-        return {  
-        // Besides converting the types, we also simpilify the variable names here.
-            station: d.station,
-            state: d.state,
-            lat: +d.latitude,
-            long: +d.longitude,
-            elevation: +d.elevation,
-            date: d.date,
-            tmin: +d.TMIN, // min temp
-            tmax: +d.TMAX, // max temp
-            tavg: +d.TAVG, // avg temp
-            awnd: +d.AWND, // avg wind
-            wdf5: +d.WDF5, // wind direction in degrees
-            wsf5: +d.WSF5, // fastest wind speed
-            snow: +d.SNOW, // snowfall 
-            snwd: +d.SNWD, // snow already on ground
-            prcp: +d.PRCP // precipation
+ const key = (state, station) => JSON.stringify([state, station]);
+
+ function createChart(selector) {
+     const root = d3.select(selector)
+         .append('svg')
+         .attr('viewBox', `0 0 ${W} ${H}`)
+         .append('g')
+         .attr('transform', `translate(${margin.left},${margin.top})`);
+
+     root.append('g')
+         .attr('class', 'grid')
+         .attr('transform', `translate(0,${innerH})`);
+
+     root.append('g')
+         .attr('class', 'axis x-axis')
+         .attr('transform', `translate(0,${innerH})`);
+
+     root.append('g').attr('class', 'axis y-axis');
+     root.append('g').attr('class', 'marks');
+
+     root.append('text')
+         .attr('class', 'ylabel')
+         .attr('transform', 'rotate(-90)')
+         .attr('x', -innerH / 2)
+         .attr('y', -48)
+         .attr('text-anchor', 'middle');
+
+     return root;
+ }
+
+ const tempChart = createChart('#temperature');
+ const rainChart = createChart('#precipitation');
+
+ function selections() {
+     return ['A', 'B'].map((side, i) => ({
+         state: d3.select('#state' + side).property('value'),
+         station: d3.select('#station' + side).property('value'),
+         color: palette[i]
+     }));
+ }
+
+ // Tooltip functions
+ function showTip(event, html) {
+     tooltip
+         .style('display', 'block')
+         .html(html);
+
+     moveTip(event);
+ }
+
+ function moveTip(event) {
+     tooltip
+         .style('left', Math.max(8, Math.min(event.clientX + 15, window.innerWidth - 230)) + 'px')
+         .style('top', Math.max(8, event.clientY - 80) + 'px');
+ }
+
+ function hideTip() {
+     tooltip.style('display', 'none');
+ }
+
+ function updateVis() {
+     const selected = selections();
+     const metric = d3.select('#metric').property('value');
+
+     const domain = d3.extent(allData, d => d.date);
+
+     const x = d3.scaleTime()
+         .domain(domain)
+         .range([0, innerW]);
+
+     const series = selected.map(s => ({
+         ...s,
+         values: byStation.get(key(s.state, s.station)) || []
+     }));
+
+     const valid = series
+         .flatMap(s => s.values)
+         .filter(d => Number.isFinite(d[metric]));
+
+     const yDomain = d3.extent(valid, d => d[metric]);
+
+     const y = d3.scaleLinear()
+         .domain(Number.isFinite(yDomain[0]) ? yDomain : [0, 100])
+         .nice()
+         .range([innerH, 0]);
+
+     // Axes
+     tempChart.select('.x-axis')
+         .call(d3.axisBottom(x).ticks(9));
+
+     tempChart.select('.y-axis')
+         .call(d3.axisLeft(y));
+
+     tempChart.select('.grid')
+         .call(d3.axisBottom(x).ticks(9).tickSize(-innerH).tickFormat(''));
+
+     tempChart.select('.ylabel')
+         .text('Temperature (°F)');
+
+     // Temperature line
+     const line = d3.line()
+         .defined(d => Number.isFinite(d[metric]))
+         .x(d => x(d.date))
+         .y(d => y(d[metric]));
+
+     tempChart.select('.marks')
+         .selectAll('.series')
+         .data(series, (d, i) => i)
+         .join(enter => {
+             const g = enter.append('g').attr('class', 'series');
+
+             g.append('path')
+                 .attr('class', 'trend')
+                 .attr('fill', 'none')
+                 .attr('stroke-width', 2);
+
+             g.append('g').attr('class', 'dots');
+
+             return g;
+         })
+         .each(function(s) {
+             const g = d3.select(this);
+
+             g.select('.trend')
+                 .attr('d', line(s.values))
+                 .attr('stroke', s.color);
+
+             // Temperature points with hover tooltips
+             g.select('.dots')
+                 .selectAll('circle')
+                 .data(
+                     s.values.filter(d => Number.isFinite(d[metric])),
+                     d => +d.date
+                 )
+                 .join('circle')
+                 .attr('cx', d => x(d.date))
+                 .attr('cy', d => y(d[metric]))
+                 .attr('r', 4)
+                 .attr('fill', s.color)
+                 .attr('opacity', 0.7)
+                 .style('cursor', 'pointer')
+
+                 .on('mouseover', function(event, d) {
+                     // Highlight selected point
+                     d3.select(this)
+                         .attr('r', 7)
+                         .attr('opacity', 1)
+                         .attr('stroke', 'black')
+                         .attr('stroke-width', 2);
+
+                     const metricName = metric === 'TMAX'
+                         ? 'Maximum Temperature'
+                         : 'Minimum Temperature';
+
+                     showTip(event, `
+                         <strong>${s.station} (${s.state})</strong>
+                         <div>${fmt(d.date)}</div>
+                         <div><strong>${metricName}:</strong> ${d[metric].toFixed(1)} °F</div>
+                     `);
+                 })
+
+                 .on('mousemove', function(event) {
+                     moveTip(event);
+                 })
+
+                 .on('mouseout', function() {
+                     d3.select(this)
+                         .attr('r', 4)
+                         .attr('opacity', 0.7)
+                         .attr('stroke', 'none');
+
+                     hideTip();
+                 });
+         });
+
+     // Date-range brushing
+     const brush = d3.brushX()
+         .extent([[0, 0], [innerW, innerH]])
+         .on('end', event => {
+             if (!event.sourceEvent) return;
+
+             selectedRange = event.selection
+                 ? event.selection.map(x.invert)
+                 : null;
+
+             updatePrecip();
+         });
+
+     tempChart.selectAll('.brush')
+         .data([null])
+         .join('g')
+         .attr('class', 'brush')
+         .call(brush);
+
+     if (selectedRange) {
+         tempChart.select('.brush')
+             .call(brush.move, selectedRange.map(x));
      }
-    })
-    .then(data => {
-            console.log(data) // Check the structure in the console
-            allData = data // Save the processed data
-            setupSelector()
-            
-            // Initial rendering steps:
-            // P.S. You could move these into setupSelector(), 
-            // but calling them separately makes the flow clearer.
-            updateAxes()
-            updateVis()
-            addLegend()
-        })
-    .catch(error => console.error('Error loading data:', error));
-}
 
-window.addEventListener("load", init);
+     // Keep temperature points above brush for hover interaction
+     tempChart.select('.marks').raise();
 
-// Commenting everything out from here on to check data
-/*
+     updatePrecip();
+ }
 
+ function updatePrecip() {
+     const selected = selections();
 
-// Here’s what each function is responsible for:
+     const months = d3.timeMonth.range(
+         d3.timeMonth.floor(d3.min(allData, d => d.date)),
+         d3.timeMonth.offset(
+             d3.timeMonth.floor(d3.max(allData, d => d.date)),
+             1
+         )
+     );
 
-function setupSelector(){
-    let slider = d3
-        .sliderHorizontal()
-        .min(d3.min(allData.map(d => +d.year))) // setup the range
-        .max(d3.max(allData.map(d => +d.year))) // setup the range
-        .step(1)
-        .width(width)  // Widen the slider if needed
-        .displayValue(false)
-        .on('onchange', (val) => {
-            // Updates the text on top of the page with the slider’s value
-            d3.select('#value').text(val);
-            targetYear = +val // Update the year
-            updateVis() // Refresh the chart
-        });
+     const bars = months.flatMap(month =>
+         selected.map((s, i) => {
+             const rows = (
+                 byStation.get(key(s.state, s.station)) || []
+             ).filter(d =>
+                 (!selectedRange ||
+                     (d.date >= selectedRange[0] &&
+                      d.date <= selectedRange[1])) &&
+                 +d3.timeMonth.floor(d.date) === +month &&
+                 Number.isFinite(d.PRCP)
+             );
 
-    d3.select('#slider')
-        .append('svg')
-        .attr('width', width)  // Adjust width if needed
-        .attr('height', 100)
-        .append('g')
-        .attr('transform', 'translate(30,30)')
-        .call(slider);
+             return {
+                 i,
+                 station: s.station,
+                 state: s.state,
+                 color: s.color,
+                 month,
+                 value: d3.sum(rows, d => d.PRCP)
+             };
+         })
+     );
 
-    d3.selectAll('.variable')
-    // loop over each dropdown button
-        .each(function() {
-            d3.select(this).selectAll('myOptions')
-            .data(options)
-            .enter()
-            .append('option')
-            .text(d => d) // The displayed text
-            .attr("value",d => d) // The actual value used in the code
-    })
-    .on("change", function (event) {
-        switch(d3.select(this).property("id")) {
-            case "xVariable":
-                xVar = d3.select(this).property("value")
-            case "yVariable":
-                yVar = d3.select(this).property("value")
-            case "sizeVariable":
-                sizeVar = d3.select(this).property("value")
-        }
-        updateAxes(); 
-        updateVis();
-    })
-    
-    d3.select('#xVariable').property('value', xVar)
-    d3.select('#yVariable').property('value', yVar)
-    d3.select('#sizeVariable').property('value', sizeVar)
-}
+     const x0 = d3.scaleBand()
+         .domain(months.map(d => +d))
+         .range([0, innerW])
+         .padding(0.2);
 
-function updateAxes(){
-    // Draws the x-axis and y-axis
-    // Adds ticks, labels, and makes sure everything lines up nicely
-    svg.selectAll('.axis').remove()
-    svg.selectAll('.labels').remove()
-    xScale = d3.scaleLinear()
-    .domain([0, d3.max(allData, d => d[xVar])])
-    .range([0, width]);
-    const xAxis = d3.axisBottom(xScale)
+     const x1 = d3.scaleBand()
+         .domain([0, 1])
+         .range([0, x0.bandwidth()])
+         .padding(0.07);
 
-    svg.append("g")
-    .attr("class", "axis")
-    .attr("transform", `translate(0,${height})`) // Position at the bottom
-    .call(xAxis);
+     const y = d3.scaleLinear()
+         .domain([0, d3.max(bars, d => d.value) || 1])
+         .nice()
+         .range([innerH, 0]);
 
-    // Your turn: Create the y-axis using the same approach.
-    // Use d3.scaleLinear() again.
-    // Adjust .domain(), .range(), and the .attr("transform", ...) to position it on the left.
-    yScale = d3.scaleLinear()
-    .domain([0, d3.max(allData, d => d[yVar])])
-    .range([height, 0]);
-    const yAxis = d3.axisLeft(yScale)
+     rainChart.select('.x-axis')
+         .call(d3.axisBottom(x0)
+             .tickFormat(d => monthFmt(new Date(d))));
 
-    svg.append("g")
-    .attr("class", "axis")
-    .call(yAxis);
+     rainChart.select('.y-axis')
+         .call(d3.axisLeft(y));
 
-    sizeScale = d3.scaleSqrt()
-    .domain([0, d3.max(allData, d => d[sizeVar])]) // Largest bubble = largest data point 
-    .range([5, 20]); // Feel free to tweak these values if you want bigger or smaller bubbles
+     rainChart.select('.grid')
+         .call(d3.axisBottom(x0).tickSize(-innerH).tickFormat(''));
 
-    // X-axis label
-    svg.append("text")
-    .attr("x", width / 2)
-    .attr("y", height + margin.bottom - 5)
-    .attr("text-anchor", "middle")
-    .text(xVar) // Displays the current x-axis variable
-    .attr('class', 'labels')
+     rainChart.select('.ylabel')
+         .text('Total precipitation (in)');
 
-    // Y-axis label (rotated)
-    svg.append("text")
-    .attr("transform", "rotate(-90)")
-    .attr("x", -height / 2)
-    .attr("y", -margin.left + 40)
-    .attr("text-anchor", "middle")
-    .text(yVar) // Displays the current y-axis variable
-    .attr('class', 'labels')
-}
+     rainChart.select('.marks')
+         .selectAll('rect')
+         .data(bars, d => d.i + '-' + +d.month)
+         .join('rect')
+         .attr('x', d => x0(+d.month) + x1(d.i))
+         .attr('y', d => y(d.value))
+         .attr('width', x1.bandwidth())
+         .attr('height', d => innerH - y(d.value))
+         .attr('fill', d => d.color)
 
-function updateVis(){
-  // Draws (or updates) the bubbles
-  // Filter data for the current year
-    let currentData = allData.filter(d => d.year === targetYear)
+         .on('mouseover', (event, d) => {
+             showTip(event, `
+                 <strong>${d.station} (${d.state})</strong>
+                 <div>${monthFmt(d.month)} 2017</div>
+                 <div><strong>Precipitation:</strong> ${d.value.toFixed(2)} in</div>
+             `);
+         })
 
-    svg.selectAll('.points')
-        // Why use d => d.country as the key?
-        // Because each country is unique in the dataset for the current year. 
-        // This helps D3 know which bubbles to keep, update, or remove.
-        .data(currentData, d => d.country)
-        .join(
-            function(enter){
-                 return enter
-                .append('circle')
-                .attr('class', 'points')
-                .attr('cx', d => xScale(d[xVar])) // Position on x-axis
-                .attr('cy', d => yScale(d[yVar])) // Position on y-axis
-                .attr('r',  d => sizeScale(d[sizeVar])) // Bubble size
-                // Apply continent colors
-                .style('fill', d => colorScale(d.continent))
-                .style('opacity', .5) // Slight transparency for better visibility
-                .attr('r', 0) // before transition r = 0
-                .on('mouseover', function (event, d) {
-                    d3.select('#tooltip')
-                    // if you change opacity to hide it, you should also change opacity here
-                    .style("display", 'block') // Make the tooltip visible
-                    .html( // Change the html content of the <div> directly
-                    `<strong>${d.country}</strong><br/>
-                    Continent: ${d.continent}`)
-                    .style("left", (event.pageX + 20) + "px")
-                    .style("top", (event.pageY - 28) + "px");
-                    d3.select(this) // Refers to the hovered circle
-                    .style('stroke', 'black')
-                    .style('stroke-width', '4px')
-                })
-                .on("mouseout", function (event, d) {
-                    d3.select('#tooltip')
-                    .style('display', 'none')   // hide tooltip
-                    d3.select(this)              
-                    .style('stroke', 'none') 
-                })
-                .transition(t) // Animate the transition
-                .attr('r', d => sizeScale(d[sizeVar])) // Expand to target size
-            },
-            function(update){
-                // existing points gets updated here
-                return update
-                .transition(t)
-                .attr('cx', d => xScale(d[xVar]))
-                .attr('cy', d => yScale(d[yVar]))
-                .attr('r',  d => sizeScale(d[sizeVar]))
-                // Apply continent colors
-                .style('fill', d => colorScale(d.continent))
-                .style('opacity', .5) // Slight transparency for better visibility
+         .on('mousemove', moveTip)
+         .on('mouseout', hideTip);
 
-            },
-            function(exit){
-                // old points get updated here
-                exit.remove()
-                .transition(t)
-                .attr('r', 0)  // Shrink to radius 0
-                .remove()  // Then remove the bubble
-            }
-        )
-}
+     d3.select('#rangeText').text(
+         selectedRange
+             ? `Selected: ${fmt(selectedRange[0])} – ${fmt(selectedRange[1])}`
+             : 'Showing all available dates. Drag across the temperature chart to filter precipitation.'
+     );
+ }
 
-function addLegend(){
-  let size = 10  // Size of the legend squares
+ function populateStations(side, preferred) {
+     const state = d3.select('#state' + side).property('value');
+     const stations = byState.get(state) || [];
+     const select = d3.select('#station' + side);
 
-  // Your turn, draw a set of rectangles using D3
-  svg.selectAll('continentSquare')
-  // data here should be "continents", which we've defined as a global variable
-  // the rect's y could be  -margin.top/2, x could be based on i * (size + 100) + 100
-  // i is the index in the continents array
-  .data(continents)
-    .enter()
-    .append("rect")
-      .attr("x", (d, i) => i * (size + 100))
-      .attr("y", -margin.top / 2)
-      .attr("width", size)
-      .attr("height", size)
-  // use "colorScale" to fill them; colorScale is a global variable we defined, used in coloring bubbles
-  .style("fill", d => colorScale(d))
+     select.selectAll('option')
+         .data(stations)
+         .join('option')
+         .attr('value', d => d)
+         .text(d => d);
 
-   svg.selectAll("continentName")
-        .data(continents)
-        .enter()
-        .append("text")
-        .attr("y", -margin.top/2 + size) // Align vertically with the square
-        .attr("x", (d, i) => i * (size + 100)+ 20)  
-        .style("fill", d => colorScale(d))  // Match text color to the square
-        .text(d => d) // The actual continent name
-        .attr("text-anchor", "left")
-        .style('font-size', '13px')
-}
+     select.property(
+         'value',
+         stations.includes(preferred) ? preferred : stations[0]
+     );
+ }
 
-window.addEventListener('load', init);
+ function init() {
+     d3.csv('./data/weather_stations.csv', d => ({
+         state: d.state,
+         station: d.station,
+         date: d3.timeParse('%Y%m%d')(d.date),
+         TMIN: d.TMIN === '' ? NaN : +d.TMIN,
+         TMAX: d.TMAX === '' ? NaN : +d.TMAX,
+         PRCP: d.PRCP === '' ? NaN : +d.PRCP
+     }))
+     .then(data => {
+         allData = data.filter(d => d.date);
 
-/*
-svg.append('text')
-    .attr('class', 'axis-label')
-    .attr('x', width / 2)
-    .attr('y', height + margin.bottom - 4)
-    .style('text-anchor', 'middle')
-    .text('fruit');
+         const states = [
+             ...new Set(allData.map(d => d.state))
+         ].sort();
 
-svg.append('text')
-    .attr('class', 'axis-label')
-    .attr('transform', 'rotate(-90)')
-    .attr('x', -height / 2)
-    .attr('y', -margin.left + 15)
-    .style('text-anchor', 'middle')
-    .text('count'); */
+         byState = d3.rollup(
+             allData,
+             v => [...new Set(v.map(d => d.station))].sort(),
+             d => d.state
+         );
 
+         byStation = d3.group(
+             allData,
+             d => key(d.state, d.station)
+         );
+
+         for (const values of byStation.values()) {
+             values.sort((a, b) => a.date - b.date);
+         }
+
+         for (const side of ['A', 'B']) {
+             d3.select('#state' + side)
+                 .selectAll('option')
+                 .data(states)
+                 .join('option')
+                 .attr('value', d => d)
+                 .text(d => d);
+         }
+
+         d3.select('#stateA')
+             .property('value', states.includes('MD') ? 'MD' : states[0]);
+
+         d3.select('#stateB')
+             .property('value', states.includes('PR') ? 'PR' : states[1] || states[0]);
+
+         populateStations('A');
+         populateStations('B', 'SAN JUAN L M MARIN AP');
+
+         for (const side of ['A', 'B']) {
+             d3.select('#state' + side).on('change', () => {
+                 populateStations(side);
+                 selectedRange = null;
+                 updateVis();
+             });
+
+             d3.select('#station' + side).on('change', () => {
+                 selectedRange = null;
+                 updateVis();
+             });
+         }
+
+         d3.select('#metric')
+             .on('change', updateVis);
+
+         d3.select('#reset')
+             .on('click', () => {
+                 selectedRange = null;
+                 updateVis();
+             });
+
+         updateVis();
+     })
+     .catch(error => {
+         console.error(error);
+
+         d3.select('#temperature')
+             .append('p')
+             .text('Could not load data. Run with a local server (see README).');
+     });
+ }
+
+ window.addEventListener('load', init);

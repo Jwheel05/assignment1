@@ -1,28 +1,140 @@
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Assignment 1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>U.S. Weather Explorer | CMSC471</title>
     <link rel="stylesheet" href="./css/styles.css">
 </head>
+
 <body>
-    <div class="container"> <!-- Centers content and sets max width -->
-        <h1>Daily Weather across the US in 2017</h1>
-        <p id="value"></p>
-        <div id="slider"></div>
-        <div id="controls">
-            X: <select id="xVariable" class="variable"></select>
-            Y: <select id="yVariable" class="variable"></select>
-            size: <select id="sizeVariable" class="variable"></select>
-        </div>
-        <div id="tooltip" style="display:none"></div> 
-        <div id="vis"></div> <!--  Will hold our visualization (SVG) -->
-    </div>
-    
+    <main class="container">
+
+        <header>
+            <h1>U.S. Weather Explorer</h1>
+            <p>
+                Compare actual weather stations by state or territory,
+                using the course's 2017 observations.
+            </p>
+        </header>
+
+        <!-- Station and temperature controls -->
+        <section class="controls">
+
+            <label>
+                State / territory A
+                <select id="stateA"></select>
+            </label>
+
+            <label>
+                Station A
+                <select id="stationA"></select>
+            </label>
+
+            <label>
+                State / territory B
+                <select id="stateB"></select>
+            </label>
+
+            <label>
+                Station B
+                <select id="stationB"></select>
+            </label>
+
+            <label>
+                Temperature
+                <select id="metric">
+                    <option value="TMAX">Daily maximum (°F)</option>
+                    <option value="TMIN">Daily minimum (°F)</option>
+                </select>
+            </label>
+
+            <button id="reset">Reset date selection</button>
+
+        </section>
+
+        <!-- Temperature visualization -->
+        <section class="panel">
+            <h2>Daily temperature</h2>
+
+            <p>
+                Drag across the plot to select a date range;
+                hover over points for details.
+            </p>
+
+            <div id="temperature"></div>
+        </section>
+
+        <!-- Precipitation visualization -->
+        <section class="panel">
+            <h2>Monthly precipitation totals</h2>
+
+            <p id="rangeText"></p>
+
+            <div id="precipitation"></div>
+        </section>
+
+        <!-- Project documentation -->
+        <section class="panel">
+            <h2>About this visualization</h2>
+
+            <p>
+                <strong>Dataset:</strong>
+                CMSC471's Daily Weather in the U.S., 2017,
+                sourced from NOAA GHCN. States and actual station
+                names come directly from the original file,
+                including Puerto Rico and Guam.
+            </p>
+
+            <p>
+                <strong>Design:</strong>
+                Two station-specific temperature lines and grouped
+                precipitation bars support comparison. State and
+                station dropdowns filter records; hover reveals
+                details; brushing the temperature chart filters
+                precipitation totals.
+            </p>
+
+            <p>
+                <strong>Data handling:</strong>
+                We retain all available stations. Duplicate readings
+                for the same state, station and date are averaged
+                per measurement to avoid counting precipitation twice.
+                Missing measurements are excluded. The supplied
+                values are Fahrenheit and inches.
+            </p>
+
+            <p>
+                <strong>Sources:</strong>
+                <a href="https://zcliu.github.io/teaching/CMSC471/assignments/weather.csv">
+                    Course weather CSV
+                </a>
+                ·
+                <a href="https://zcliu.github.io/teaching/CMSC471/assignments/weather.txt">
+                    Column descriptions
+                </a>.
+            </p>
+
+            <p>
+                <strong>Before submitting:</strong>
+                Add your team's alternative design choices,
+                development time, contributions, and AI-use disclosure.
+            </p>
+        </section>
+
+        <!-- Tooltip -->
+        <div id="tooltip" role="status"></div>
+
+    </main>
+
     <!-- Load D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://unpkg.com/d3-simple-slider"></script>
+
+    <!-- Load visualization JavaScript -->
     <script src="./js/script.js"></script>
+
 </body>
+
 </html>
