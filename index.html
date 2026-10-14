@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labs 4 & 5: Interactive Data Visualization with D3.js</title>
+    <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+    <div class="container"> <!-- Centers content and sets max width -->
+        <h1>Labs 4 & 5: Interactive Data Visualization with D3.js</h1>
+        <p>
+            Text to introduce the dataset and how to use the interface, including at least one insight from the dataset:
+            <br><br>
+            This dataset consists of 8145 array entries of continents (Items) from years 1960 to 2015.
+
+            Each of the following countries represents an item and the the following are it's attributes: Continent, income, year, gdp, lifeexpectancy, and childdeaths.
+
+            To use the visualization, the slider at the top will represent the year that is being shown in the data.
+
+            The dropdowns allow the user to select the different axis and data attributes the user wants to see. The user can hover over
+
+            any bubble within the visualization and get the name of the country and continent.
+
+            An insight from the dataset is that typically for a country that has a higher income, they tend to have less childdeaths as well as a higher life expentancy.
+        <br><br>
+        </p>
+        <p id="value"></p>
+        <div id="slider"></div>
+        <div id="controls">
+            X: <select id="xVariable" class="variable"></select>
+            Y: <select id="yVariable" class="variable"></select>
+            size: <select id="sizeVariable" class="variable"></select>
+        </div>
+        <div id="tooltip" style="display:none"></div> 
+        <div id="vis"></div> <!--  Will hold our visualization (SVG) -->
+    </div>
+    
+    <!-- Load D3.js -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/d3-simple-slider"></script>
+    <script src="./js/script.js"></script>
+</body>
+</html>
