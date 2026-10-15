@@ -98,6 +98,16 @@ function resetDateSelection() {
 function updateVis() {
     const metric = d3.select('#metric').property('value');
 
+    // Update temperature chart title
+    const tempTitles = {
+        TMAX: 'Daily Maximum Temperature (°F)',
+        TMIN: 'Daily Minimum Temperature (°F)',
+        TAVG: 'Daily Average Temperature (°F)'
+    };
+
+    d3.select('#tempTitle')
+        .text(tempTitles[metric]);
+
     const x = d3.scaleTime()
         .domain(selectedRange || [yearStart, periodEnd])
         .range([0, innerW]);
@@ -296,7 +306,6 @@ function updateVis() {
 }
 
 function updatePrecip() {
-    // Selected bar chart measurement
     const metric = d3.select('#rainMetric').property('value');
 
     const metricLabels = {
@@ -318,10 +327,23 @@ function updatePrecip() {
 
     const durationDays = (end - start) / 86400000;
 
-    // Daily bars when zoomed into 31 days or fewer
     const dailyMode =
         selectedRange !== null &&
         durationDays <= 31;
+
+    // Update precipitation/snow chart title
+    const periodLabel = dailyMode ? 'Daily' : 'Monthly';
+
+    const rainTitles = {
+        PRCP: `${periodLabel} Precipitation Totals (in)`,
+        SNOW: `${periodLabel} Snowfall Totals (in)`,
+        SNWD: dailyMode
+            ? 'Daily Snow Depth (in)'
+            : 'Monthly Average Snow Depth (in)'
+    };
+
+    d3.select('#rainTitle')
+        .text(rainTitles[metric]);
 
     let periods;
 
@@ -363,8 +385,6 @@ function updatePrecip() {
                     Number.isFinite(d[metric]);
             });
 
-            // Snow depth is averaged, not summed.
-            // Precipitation and snowfall are summed.
             let value = 0;
 
             if (rows.length) {
@@ -488,7 +508,8 @@ function updatePrecip() {
         .on('mousemove', moveTip)
         .on('mouseout', hideTip);
 
-
+    // Describe the displayed data without suggesting
+    // that the bar chart has its own zoom controls.
     const rangeText = selectedRange
         ? `Selected: ${fmt(start)} – ${fmt(end)}. Showing ${dailyMode ? 'daily' : 'monthly'} ${name.toLowerCase()}${metric === 'SNWD' && !dailyMode ? ' averages' : ''}.`
         : `Showing January–September ${metric === 'SNWD' ? 'monthly average snow depth' : 'monthly ' + name.toLowerCase() + ' totals'}.`;
@@ -624,18 +645,15 @@ function init() {
                     .on('change', resetDateSelection);
             }
 
-            // Temperature dropdown
             d3.select('#metric')
                 .on('change', updateVis);
 
-            // Precipitation / Snow dropdown
             d3.select('#rainMetric')
                 .on('change', () => {
                     hideTip();
                     updatePrecip();
                 });
 
-            // Reset button
             d3.select('#reset')
                 .on('click', resetDateSelection);
 

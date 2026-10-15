@@ -10,9 +10,13 @@
 
 <body>
     <main class="container">
+
         <header>
             <h1>U.S. Weather Explorer</h1>
-            <p>Compare actual weather stations by state or territory, using the course's 2017 observations.</p>
+            <p>
+                Compare actual weather stations by state or territory,
+                using the course's 2017 observations.
+            </p>
         </header>
 
         <section class="controls">
@@ -58,7 +62,7 @@
         </section>
 
         <section class="panel">
-            <h2>Daily temperature</h2>
+            <h2 id="tempTitle">Daily Maximum Temperature (°F)</h2>
             <p>
                 Drag across an empty area of the chart to select dates
                 and zoom in. Hover over points for details.
@@ -68,7 +72,7 @@
         </section>
 
         <section class="panel">
-            <h2>Precipitation, snowfall and snow depth</h2>
+            <h2 id="rainTitle">Monthly Precipitation Totals (in)</h2>
             <p id="rangeText"></p>
             <div id="precipitation"></div>
         </section>
@@ -123,6 +127,7 @@
         </section>
 
         <div id="tooltip" role="status"></div>
+
     </main>
 
     <script src="https://d3js.org/d3.v7.min.js"></script>
