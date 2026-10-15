@@ -1,415 +1,655 @@
 
- // CMSC471 Assignment 1 — Weather Explorer
- // State and station selection, temperature comparison, precipitation, and tooltips
-
- const margin = { top: 35, right: 22, bottom: 48, left: 65 };
- const W = 1000, H = 360;
- const innerW = W - margin.left - margin.right;
- const innerH = H - margin.top - margin.bottom;
-
- const palette = ['#2468ad', '#e07a32'];
-
- let allData = [];
- let byState = new Map();
- let byStation = new Map();
- let selectedRange = null;
-
- const fmt = d3.timeFormat('%b %d, %Y');
- const monthFmt = d3.timeFormat('%b');
- const tooltip = d3.select('#tooltip');
-
- const key = (state, station) => JSON.stringify([state, station]);
-
- function createChart(selector) {
-     const root = d3.select(selector)
-         .append('svg')
-         .attr('viewBox', `0 0 ${W} ${H}`)
-         .append('g')
-         .attr('transform', `translate(${margin.left},${margin.top})`);
-
-     root.append('g')
-         .attr('class', 'grid')
-         .attr('transform', `translate(0,${innerH})`);
-
-     root.append('g')
-         .attr('class', 'axis x-axis')
-         .attr('transform', `translate(0,${innerH})`);
-
-     root.append('g').attr('class', 'axis y-axis');
-     root.append('g').attr('class', 'marks');
-
-     root.append('text')
-         .attr('class', 'ylabel')
-         .attr('transform', 'rotate(-90)')
-         .attr('x', -innerH / 2)
-         .attr('y', -48)
-         .attr('text-anchor', 'middle');
-
-     return root;
- }
-
- const tempChart = createChart('#temperature');
- const rainChart = createChart('#precipitation');
-
- function selections() {
-     return ['A', 'B'].map((side, i) => ({
-         state: d3.select('#state' + side).property('value'),
-         station: d3.select('#station' + side).property('value'),
-         color: palette[i]
-     }));
- }
-
- // Tooltip functions
- function showTip(event, html) {
-     tooltip
-         .style('display', 'block')
-         .html(html);
-
-     moveTip(event);
- }
-
- function moveTip(event) {
-     tooltip
-         .style('left', Math.max(8, Math.min(event.clientX + 15, window.innerWidth - 230)) + 'px')
-         .style('top', Math.max(8, event.clientY - 80) + 'px');
- }
-
- function hideTip() {
-     tooltip.style('display', 'none');
- }
-
- function updateVis() {
-     const selected = selections();
-     const metric = d3.select('#metric').property('value');
-
-     const domain = d3.extent(allData, d => d.date);
-
-     const x = d3.scaleTime()
-         .domain(domain)
-         .range([0, innerW]);
-
-     const series = selected.map(s => ({
-         ...s,
-         values: byStation.get(key(s.state, s.station)) || []
-     }));
-
-     const valid = series
-         .flatMap(s => s.values)
-         .filter(d => Number.isFinite(d[metric]));
-
-     const yDomain = d3.extent(valid, d => d[metric]);
-
-     const y = d3.scaleLinear()
-         .domain(Number.isFinite(yDomain[0]) ? yDomain : [0, 100])
-         .nice()
-         .range([innerH, 0]);
-
-     // Axes
-     tempChart.select('.x-axis')
-         .call(d3.axisBottom(x).ticks(9));
-
-     tempChart.select('.y-axis')
-         .call(d3.axisLeft(y));
-
-     tempChart.select('.grid')
-         .call(d3.axisBottom(x).ticks(9).tickSize(-innerH).tickFormat(''));
-
-     tempChart.select('.ylabel')
-         .text('Temperature (°F)');
-
-     // Temperature line
-     const line = d3.line()
-         .defined(d => Number.isFinite(d[metric]))
-         .x(d => x(d.date))
-         .y(d => y(d[metric]));
-
-     tempChart.select('.marks')
-         .selectAll('.series')
-         .data(series, (d, i) => i)
-         .join(enter => {
-             const g = enter.append('g').attr('class', 'series');
-
-             g.append('path')
-                 .attr('class', 'trend')
-                 .attr('fill', 'none')
-                 .attr('stroke-width', 2);
-
-             g.append('g').attr('class', 'dots');
-
-             return g;
-         })
-         .each(function(s) {
-             const g = d3.select(this);
-
-             g.select('.trend')
-                 .attr('d', line(s.values))
-                 .attr('stroke', s.color);
-
-             // Temperature points with hover tooltips
-             g.select('.dots')
-                 .selectAll('circle')
-                 .data(
-                     s.values.filter(d => Number.isFinite(d[metric])),
-                     d => +d.date
-                 )
-                 .join('circle')
-                 .attr('cx', d => x(d.date))
-                 .attr('cy', d => y(d[metric]))
-                 .attr('r', 4)
-                 .attr('fill', s.color)
-                 .attr('opacity', 0.7)
-                 .style('cursor', 'pointer')
-
-                 .on('mouseover', function(event, d) {
-                     // Highlight selected point
-                     d3.select(this)
-                         .attr('r', 7)
-                         .attr('opacity', 1)
-                         .attr('stroke', 'black')
-                         .attr('stroke-width', 2);
-
-                     const metricName = metric === 'TMAX'
-                         ? 'Maximum Temperature'
-                         : 'Minimum Temperature';
-
-                     showTip(event, `
-                         <strong>${s.station} (${s.state})</strong>
-                         <div>${fmt(d.date)}</div>
-                         <div><strong>${metricName}:</strong> ${d[metric].toFixed(1)} °F</div>
-                     `);
-                 })
-
-                 .on('mousemove', function(event) {
-                     moveTip(event);
-                 })
-
-                 .on('mouseout', function() {
-                     d3.select(this)
-                         .attr('r', 4)
-                         .attr('opacity', 0.7)
-                         .attr('stroke', 'none');
-
-                     hideTip();
-                 });
-         });
-
-     // Date-range brushing
-     const brush = d3.brushX()
-         .extent([[0, 0], [innerW, innerH]])
-         .on('end', event => {
-             if (!event.sourceEvent) return;
-
-             selectedRange = event.selection
-                 ? event.selection.map(x.invert)
-                 : null;
-
-             updatePrecip();
-         });
-
-     tempChart.selectAll('.brush')
-         .data([null])
-         .join('g')
-         .attr('class', 'brush')
-         .call(brush);
-
-     if (selectedRange) {
-         tempChart.select('.brush')
-             .call(brush.move, selectedRange.map(x));
-     }
-
-     // Keep temperature points above brush for hover interaction
-     tempChart.select('.marks').raise();
-
-     updatePrecip();
- }
-
- function updatePrecip() {
-     const selected = selections();
-
-     const months = d3.timeMonth.range(
-         d3.timeMonth.floor(d3.min(allData, d => d.date)),
-         d3.timeMonth.offset(
-             d3.timeMonth.floor(d3.max(allData, d => d.date)),
-             1
-         )
-     );
-
-     const bars = months.flatMap(month =>
-         selected.map((s, i) => {
-             const rows = (
-                 byStation.get(key(s.state, s.station)) || []
-             ).filter(d =>
-                 (!selectedRange ||
-                     (d.date >= selectedRange[0] &&
-                      d.date <= selectedRange[1])) &&
-                 +d3.timeMonth.floor(d.date) === +month &&
-                 Number.isFinite(d.PRCP)
-             );
-
-             return {
-                 i,
-                 station: s.station,
-                 state: s.state,
-                 color: s.color,
-                 month,
-                 value: d3.sum(rows, d => d.PRCP)
-             };
-         })
-     );
-
-     const x0 = d3.scaleBand()
-         .domain(months.map(d => +d))
-         .range([0, innerW])
-         .padding(0.2);
-
-     const x1 = d3.scaleBand()
-         .domain([0, 1])
-         .range([0, x0.bandwidth()])
-         .padding(0.07);
-
-     const y = d3.scaleLinear()
-         .domain([0, d3.max(bars, d => d.value) || 1])
-         .nice()
-         .range([innerH, 0]);
-
-     rainChart.select('.x-axis')
-         .call(d3.axisBottom(x0)
-             .tickFormat(d => monthFmt(new Date(d))));
-
-     rainChart.select('.y-axis')
-         .call(d3.axisLeft(y));
-
-     rainChart.select('.grid')
-         .call(d3.axisBottom(x0).tickSize(-innerH).tickFormat(''));
-
-     rainChart.select('.ylabel')
-         .text('Total precipitation (in)');
-
-     rainChart.select('.marks')
-         .selectAll('rect')
-         .data(bars, d => d.i + '-' + +d.month)
-         .join('rect')
-         .attr('x', d => x0(+d.month) + x1(d.i))
-         .attr('y', d => y(d.value))
-         .attr('width', x1.bandwidth())
-         .attr('height', d => innerH - y(d.value))
-         .attr('fill', d => d.color)
-
-         .on('mouseover', (event, d) => {
-             showTip(event, `
-                 <strong>${d.station} (${d.state})</strong>
-                 <div>${monthFmt(d.month)} 2017</div>
-                 <div><strong>Precipitation:</strong> ${d.value.toFixed(2)} in</div>
-             `);
-         })
-
-         .on('mousemove', moveTip)
-         .on('mouseout', hideTip);
-
-     d3.select('#rangeText').text(
-         selectedRange
-             ? `Selected: ${fmt(selectedRange[0])} – ${fmt(selectedRange[1])}`
-             : 'Showing all available dates. Drag across the temperature chart to filter precipitation.'
-     );
- }
-
- function populateStations(side, preferred) {
-     const state = d3.select('#state' + side).property('value');
-     const stations = byState.get(state) || [];
-     const select = d3.select('#station' + side);
-
-     select.selectAll('option')
-         .data(stations)
-         .join('option')
-         .attr('value', d => d)
-         .text(d => d);
-
-     select.property(
-         'value',
-         stations.includes(preferred) ? preferred : stations[0]
-     );
- }
-
- function init() {
-     d3.csv('./data/weather_stations.csv', d => ({
-         state: d.state,
-         station: d.station,
-         date: d3.timeParse('%Y%m%d')(d.date),
-         TMIN: d.TMIN === '' ? NaN : +d.TMIN,
-         TMAX: d.TMAX === '' ? NaN : +d.TMAX,
-         PRCP: d.PRCP === '' ? NaN : +d.PRCP
-     }))
-     .then(data => {
-         allData = data.filter(d => d.date);
-
-         const states = [
-             ...new Set(allData.map(d => d.state))
-         ].sort();
-
-         byState = d3.rollup(
-             allData,
-             v => [...new Set(v.map(d => d.station))].sort(),
-             d => d.state
-         );
-
-         byStation = d3.group(
-             allData,
-             d => key(d.state, d.station)
-         );
-
-         for (const values of byStation.values()) {
-             values.sort((a, b) => a.date - b.date);
-         }
-
-         for (const side of ['A', 'B']) {
-             d3.select('#state' + side)
-                 .selectAll('option')
-                 .data(states)
-                 .join('option')
-                 .attr('value', d => d)
-                 .text(d => d);
-         }
-
-         d3.select('#stateA')
-             .property('value', states.includes('MD') ? 'MD' : states[0]);
-
-         d3.select('#stateB')
-             .property('value', states.includes('PR') ? 'PR' : states[1] || states[0]);
-
-         populateStations('A');
-         populateStations('B', 'SAN JUAN L M MARIN AP');
-
-         for (const side of ['A', 'B']) {
-             d3.select('#state' + side).on('change', () => {
-                 populateStations(side);
-                 selectedRange = null;
-                 updateVis();
-             });
-
-             d3.select('#station' + side).on('change', () => {
-                 selectedRange = null;
-                 updateVis();
-             });
-         }
-
-         d3.select('#metric')
-             .on('change', updateVis);
-
-         d3.select('#reset')
-             .on('click', () => {
-                 selectedRange = null;
-                 updateVis();
-             });
-
-         updateVis();
-     })
-     .catch(error => {
-         console.error(error);
-
-         d3.select('#temperature')
-             .append('p')
-             .text('Could not load data. Run with a local server (see README).');
-     });
- }
-
- window.addEventListener('load', init);
+// CMSC471 Assignment 1 — U.S. Weather Explorer
+
+const margin = { top: 35, right: 22, bottom: 48, left: 65 };
+const W = 1000, H = 360;
+const innerW = W - margin.left - margin.right;
+const innerH = H - margin.top - margin.bottom;
+
+const palette = ['#2468ad', '#e07a32'];
+const key = (state, station) => JSON.stringify([state, station]);
+
+const fmt = d3.timeFormat('%b %d, %Y');
+const monthFmt = d3.timeFormat('%b');
+const dayFmt = d3.timeFormat('%b %d');
+
+const yearStart = new Date(2017, 0, 1);
+const periodEnd = new Date(2017, 9, 1);
+const months = d3.timeMonth.range(yearStart, periodEnd);
+
+const tooltip = d3.select('#tooltip');
+
+let byState = new Map();
+let byStation = new Map();
+let selectedRange = null;
+
+function createChart(selector) {
+    const root = d3.select(selector)
+        .append('svg')
+        .attr('viewBox', `0 0 ${W} ${H}`)
+        .append('g')
+        .attr('transform', `translate(${margin.left},${margin.top})`);
+
+    root.append('g')
+        .attr('class', 'grid')
+        .attr('transform', `translate(0,${innerH})`);
+
+    root.append('g')
+        .attr('class', 'axis x-axis')
+        .attr('transform', `translate(0,${innerH})`);
+
+    root.append('g').attr('class', 'axis y-axis');
+    root.append('g').attr('class', 'marks');
+
+    root.append('text')
+        .attr('class', 'ylabel')
+        .attr('transform', 'rotate(-90)')
+        .attr('x', -innerH / 2)
+        .attr('y', -48)
+        .attr('text-anchor', 'middle');
+
+    return root;
+}
+
+const tempChart = createChart('#temperature');
+const rainChart = createChart('#precipitation');
+
+function selections() {
+    return ['A', 'B'].map((side, i) => ({
+        state: d3.select('#state' + side).property('value'),
+        station: d3.select('#station' + side).property('value'),
+        color: palette[i]
+    }));
+}
+
+function showTip(event, html) {
+    tooltip
+        .style('display', 'block')
+        .html(html);
+
+    moveTip(event);
+}
+
+function moveTip(event) {
+    tooltip
+        .style(
+            'left',
+            Math.max(
+                8,
+                Math.min(event.clientX + 15, window.innerWidth - 230)
+            ) + 'px'
+        )
+        .style(
+            'top',
+            Math.max(8, event.clientY - 80) + 'px'
+        );
+}
+
+function hideTip() {
+    tooltip.style('display', 'none');
+}
+
+function resetDateSelection() {
+    selectedRange = null;
+    hideTip();
+    updateVis();
+}
+
+function updateVis() {
+    const metric = d3.select('#metric').property('value');
+
+    const x = d3.scaleTime()
+        .domain(selectedRange || [yearStart, periodEnd])
+        .range([0, innerW]);
+
+    const [start, end] = x.domain();
+
+    const series = selections().map(s => ({
+        ...s,
+        values: (
+            byStation.get(key(s.state, s.station)) || []
+        ).filter(d =>
+            d.date >= start &&
+            d.date <= end
+        )
+    }));
+
+    const valid = series
+        .flatMap(s => s.values)
+        .filter(d => Number.isFinite(d[metric]));
+
+    const extent = d3.extent(valid, d => d[metric]);
+
+    const y = d3.scaleLinear()
+        .domain(
+            Number.isFinite(extent[0]) ? extent : [0, 100]
+        )
+        .nice()
+        .range([innerH, 0]);
+
+    const durationDays = (end - start) / 86400000;
+
+    let ticks;
+    let tickFormat;
+
+    if (!selectedRange) {
+        ticks = months;
+        tickFormat = monthFmt;
+    } else if (durationDays <= 21) {
+        ticks = d3.timeDay
+            .every(durationDays <= 10 ? 1 : 2)
+            .range(d3.timeDay.ceil(start), end);
+
+        tickFormat = dayFmt;
+    } else if (durationDays <= 75) {
+        ticks = d3.timeWeek.range(
+            d3.timeWeek.ceil(start),
+            end
+        );
+
+        tickFormat = dayFmt;
+    } else {
+        ticks = d3.timeMonth.range(
+            d3.timeMonth.ceil(start),
+            end
+        );
+
+        tickFormat = monthFmt;
+    }
+
+    tempChart.select('.x-axis')
+        .call(
+            d3.axisBottom(x)
+                .tickValues(ticks)
+                .tickFormat(tickFormat)
+        );
+
+    tempChart.select('.y-axis')
+        .call(d3.axisLeft(y));
+
+    tempChart.select('.grid')
+        .call(
+            d3.axisBottom(x)
+                .tickValues(ticks)
+                .tickSize(-innerH)
+                .tickFormat('')
+        );
+
+    tempChart.select('.ylabel')
+        .text('Temperature (°F)');
+
+    const line = d3.line()
+        .defined(d => Number.isFinite(d[metric]))
+        .x(d => x(d.date))
+        .y(d => y(d[metric]));
+
+    tempChart.select('.marks')
+        .selectAll('.series')
+        .data(series, (d, i) => i)
+        .join(enter => {
+            const g = enter.append('g')
+                .attr('class', 'series');
+
+            g.append('path')
+                .attr('class', 'trend')
+                .attr('fill', 'none')
+                .attr('stroke-width', 2);
+
+            g.append('g').attr('class', 'dots');
+
+            return g;
+        })
+        .each(function (s) {
+            const g = d3.select(this);
+
+            g.select('.trend')
+                .attr('d', line(s.values))
+                .attr('stroke', s.color)
+                .style('pointer-events', 'none');
+
+            g.select('.dots')
+                .selectAll('circle')
+                .data(
+                    s.values.filter(d =>
+                        Number.isFinite(d[metric])
+                    ),
+                    d => +d.date
+                )
+                .join('circle')
+                .attr('cx', d => x(d.date))
+                .attr('cy', d => y(d[metric]))
+                .attr('r', 4)
+                .attr('fill', s.color)
+                .attr('opacity', 0.7)
+                .style('cursor', 'pointer')
+
+                .on('mouseover', function (event, d) {
+                    d3.select(this)
+                        .raise()
+                        .attr('r', 7)
+                        .attr('opacity', 1)
+                        .attr('stroke', 'black')
+                        .attr('stroke-width', 2);
+
+                    const name = metric === 'TMAX'
+                        ? 'Maximum Temperature'
+                        : metric === 'TMIN'
+                            ? 'Minimum Temperature'
+                            : 'Average Temperature';
+
+                    showTip(event, `
+                        <strong>${s.station} (${s.state})</strong>
+                        <div>${fmt(d.date)}</div>
+                        <div>
+                            <strong>${name}:</strong>
+                            ${d[metric].toFixed(1)} °F
+                        </div>
+                    `);
+                })
+
+                .on('mousemove', moveTip)
+
+                .on('mouseout', function () {
+                    d3.select(this)
+                        .attr('r', 4)
+                        .attr('opacity', 0.7)
+                        .attr('stroke', 'none');
+
+                    hideTip();
+                });
+        });
+
+    // Drag-to-zoom brushing
+    const brush = d3.brushX()
+        .extent([[0, 0], [innerW, innerH]])
+        .on('end', event => {
+            if (!event.sourceEvent || !event.selection) {
+                return;
+            }
+
+            const range = event.selection.map(x.invert);
+
+            if (range[1] - range[0] < 86400000) {
+                tempChart.select('.brush')
+                    .call(brush.move, null);
+
+                return;
+            }
+
+            selectedRange = range;
+            hideTip();
+            updateVis();
+        });
+
+    tempChart.selectAll('.brush')
+        .data([null])
+        .join('g')
+        .attr('class', 'brush')
+        .call(brush);
+
+    tempChart.select('.brush')
+        .call(brush.move, null);
+
+    tempChart.select('.marks').raise();
+
+    updatePrecip();
+}
+
+function updatePrecip() {
+    // Selected bar chart measurement
+    const metric = d3.select('#rainMetric').property('value');
+
+    const metricLabels = {
+        PRCP: 'Precipitation',
+        SNOW: 'Snowfall',
+        SNWD: 'Snow depth'
+    };
+
+    const name = metricLabels[metric];
+    const selected = selections();
+
+    const start = selectedRange
+        ? selectedRange[0]
+        : yearStart;
+
+    const end = selectedRange
+        ? selectedRange[1]
+        : periodEnd;
+
+    const durationDays = (end - start) / 86400000;
+
+    // Daily bars when zoomed into 31 days or fewer
+    const dailyMode =
+        selectedRange !== null &&
+        durationDays <= 31;
+
+    let periods;
+
+    if (dailyMode) {
+        periods = d3.timeDay.range(
+            d3.timeDay.floor(start),
+            d3.timeDay.offset(
+                d3.timeDay.floor(end),
+                1
+            )
+        );
+    } else if (selectedRange) {
+        periods = d3.timeMonth.range(
+            d3.timeMonth.floor(start),
+            d3.timeMonth.offset(
+                d3.timeMonth.floor(end),
+                1
+            )
+        );
+    } else {
+        periods = months;
+    }
+
+    const bars = periods.flatMap(period =>
+        selected.map((s, i) => {
+            const rows = (
+                byStation.get(key(s.state, s.station)) || []
+            ).filter(d => {
+                const inRange =
+                    d.date >= start &&
+                    d.date <= end;
+
+                const samePeriod = dailyMode
+                    ? +d3.timeDay.floor(d.date) === +period
+                    : +d3.timeMonth.floor(d.date) === +period;
+
+                return inRange &&
+                    samePeriod &&
+                    Number.isFinite(d[metric]);
+            });
+
+            // Snow depth is averaged, not summed.
+            // Precipitation and snowfall are summed.
+            let value = 0;
+
+            if (rows.length) {
+                value = metric === 'SNWD'
+                    ? d3.mean(rows, d => d[metric])
+                    : d3.sum(rows, d => d[metric]);
+            }
+
+            return {
+                i,
+                station: s.station,
+                state: s.state,
+                color: s.color,
+                period,
+                value,
+                count: rows.length
+            };
+        })
+    );
+
+    const x0 = d3.scaleBand()
+        .domain(periods.map(d => +d))
+        .range([0, innerW])
+        .padding(0.2);
+
+    const x1 = d3.scaleBand()
+        .domain([0, 1])
+        .range([0, x0.bandwidth()])
+        .padding(0.07);
+
+    const y = d3.scaleLinear()
+        .domain([
+            0,
+            d3.max(bars, d => d.value) || 1
+        ])
+        .nice()
+        .range([innerH, 0]);
+
+    const labelStep = dailyMode
+        ? Math.max(1, Math.ceil(periods.length / 10))
+        : 1;
+
+    const ticks = periods
+        .filter((d, i) => i % labelStep === 0)
+        .map(d => +d);
+
+    const labelFormat = dailyMode
+        ? dayFmt
+        : monthFmt;
+
+    rainChart.select('.x-axis')
+        .call(
+            d3.axisBottom(x0)
+                .tickValues(ticks)
+                .tickFormat(d =>
+                    labelFormat(new Date(d))
+                )
+        );
+
+    rainChart.select('.y-axis')
+        .call(d3.axisLeft(y));
+
+    rainChart.select('.grid')
+        .call(
+            d3.axisBottom(x0)
+                .tickValues(ticks)
+                .tickSize(-innerH)
+                .tickFormat('')
+        );
+
+    const axisLabel = metric === 'SNWD'
+        ? 'Average snow depth (in)'
+        : `Total ${name.toLowerCase()} (in)`;
+
+    rainChart.select('.ylabel')
+        .text(axisLabel);
+
+    rainChart.select('.marks')
+        .selectAll('rect')
+        .data(
+            bars,
+            d => d.i + '-' + +d.period
+        )
+        .join('rect')
+        .attr('x', d =>
+            x0(+d.period) + x1(d.i)
+        )
+        .attr('y', d => y(d.value))
+        .attr('width', x1.bandwidth())
+        .attr('height', d =>
+            innerH - y(d.value)
+        )
+        .attr('fill', d => d.color)
+        .style(
+            'cursor',
+            d => d.count ? 'pointer' : 'default'
+        )
+
+        .on('mouseover', (event, d) => {
+            if (!d.count) return;
+
+            const dateLabel = dailyMode
+                ? fmt(d.period)
+                : `${monthFmt(d.period)} 2017`;
+
+            const valueLabel =
+                metric === 'SNWD' && !dailyMode
+                    ? 'Average snow depth'
+                    : name;
+
+            showTip(event, `
+                <strong>${d.station} (${d.state})</strong>
+                <div>${dateLabel}</div>
+                <div>
+                    <strong>${valueLabel}:</strong>
+                    ${d.value.toFixed(2)} in
+                </div>
+            `);
+        })
+
+        .on('mousemove', moveTip)
+        .on('mouseout', hideTip);
+
+
+    const rangeText = selectedRange
+        ? `Selected: ${fmt(start)} – ${fmt(end)}. Showing ${dailyMode ? 'daily' : 'monthly'} ${name.toLowerCase()}${metric === 'SNWD' && !dailyMode ? ' averages' : ''}.`
+        : `Showing January–September ${metric === 'SNWD' ? 'monthly average snow depth' : 'monthly ' + name.toLowerCase() + ' totals'}.`;
+
+    d3.select('#rangeText')
+        .text(rangeText);
+}
+
+function populateStations(side, preferred) {
+    const state = d3.select('#state' + side)
+        .property('value');
+
+    const stations = byState.get(state) || [];
+
+    const select = d3.select('#station' + side);
+
+    select.selectAll('option')
+        .data(stations)
+        .join('option')
+        .attr('value', d => d)
+        .text(d => d);
+
+    select.property(
+        'value',
+        stations.includes(preferred)
+            ? preferred
+            : stations[0]
+    );
+}
+
+function init() {
+    d3.csv('./data/weather_stations.csv', d => {
+        const TMIN = d.TMIN === '' ? NaN : +d.TMIN;
+        const TMAX = d.TMAX === '' ? NaN : +d.TMAX;
+
+        const TAVG =
+            Number.isFinite(TMIN) &&
+                Number.isFinite(TMAX)
+                ? (TMIN + TMAX) / 2
+                : NaN;
+
+        return {
+            state: d.state,
+            station: d.station,
+            date: d3.timeParse('%Y%m%d')(d.date),
+
+            TMIN,
+            TMAX,
+            TAVG,
+
+            PRCP:
+                d.PRCP == null || d.PRCP === ''
+                    ? NaN
+                    : +d.PRCP,
+
+            SNOW:
+                d.SNOW == null || d.SNOW === ''
+                    ? NaN
+                    : +d.SNOW,
+
+            SNWD:
+                d.SNWD == null || d.SNWD === ''
+                    ? NaN
+                    : +d.SNWD
+        };
+    })
+        .then(data => {
+            const allData = data.filter(d => d.date);
+
+            const states = [
+                ...new Set(allData.map(d => d.state))
+            ].sort();
+
+            byState = d3.rollup(
+                allData,
+                v => [
+                    ...new Set(v.map(d => d.station))
+                ].sort(),
+                d => d.state
+            );
+
+            byStation = d3.group(
+                allData,
+                d => key(d.state, d.station)
+            );
+
+            for (const values of byStation.values()) {
+                values.sort((a, b) =>
+                    a.date - b.date
+                );
+            }
+
+            for (const side of ['A', 'B']) {
+                d3.select('#state' + side)
+                    .selectAll('option')
+                    .data(states)
+                    .join('option')
+                    .attr('value', d => d)
+                    .text(d => d);
+            }
+
+            d3.select('#stateA')
+                .property(
+                    'value',
+                    states.includes('MD')
+                        ? 'MD'
+                        : states[0]
+                );
+
+            d3.select('#stateB')
+                .property(
+                    'value',
+                    states.includes('PR')
+                        ? 'PR'
+                        : states[1] || states[0]
+                );
+
+            populateStations('A');
+
+            populateStations(
+                'B',
+                'SAN JUAN L M MARIN AP'
+            );
+
+            for (const side of ['A', 'B']) {
+                d3.select('#state' + side)
+                    .on('change', () => {
+                        populateStations(side);
+                        resetDateSelection();
+                    });
+
+                d3.select('#station' + side)
+                    .on('change', resetDateSelection);
+            }
+
+            // Temperature dropdown
+            d3.select('#metric')
+                .on('change', updateVis);
+
+            // Precipitation / Snow dropdown
+            d3.select('#rainMetric')
+                .on('change', () => {
+                    hideTip();
+                    updatePrecip();
+                });
+
+            // Reset button
+            d3.select('#reset')
+                .on('click', resetDateSelection);
+
+            updateVis();
+        })
+        .catch(error => {
+            console.error(error);
+
+            d3.select('#temperature')
+                .append('p')
+                .text(
+                    'Could not load data. Run with a local server (see README).'
+                );
+        });
+}
+
+window.addEventListener('load', init);

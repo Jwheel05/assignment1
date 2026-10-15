@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -11,18 +10,12 @@
 
 <body>
     <main class="container">
-
         <header>
             <h1>U.S. Weather Explorer</h1>
-            <p>
-                Compare actual weather stations by state or territory,
-                using the course's 2017 observations.
-            </p>
+            <p>Compare actual weather stations by state or territory, using the course's 2017 observations.</p>
         </header>
 
-        <!-- Station and temperature controls -->
         <section class="controls">
-
             <label>
                 State / territory A
                 <select id="stateA"></select>
@@ -48,35 +41,38 @@
                 <select id="metric">
                     <option value="TMAX">Daily maximum (°F)</option>
                     <option value="TMIN">Daily minimum (°F)</option>
+                    <option value="TAVG">Daily average (°F)</option>
+                </select>
+            </label>
+
+            <label>
+                Precipitation / Snow
+                <select id="rainMetric">
+                    <option value="PRCP">Precipitation (in)</option>
+                    <option value="SNOW">Snowfall (in)</option>
+                    <option value="SNWD">Snow depth (in)</option>
                 </select>
             </label>
 
             <button id="reset">Reset date selection</button>
-
         </section>
 
-        <!-- Temperature visualization -->
         <section class="panel">
             <h2>Daily temperature</h2>
-
             <p>
-                Drag across the plot to select a date range;
-                hover over points for details.
+                Drag across an empty area of the chart to select dates
+                and zoom in. Hover over points for details.
+                Use "Reset date selection" to return to the full view.
             </p>
-
             <div id="temperature"></div>
         </section>
 
-        <!-- Precipitation visualization -->
         <section class="panel">
-            <h2>Monthly precipitation totals</h2>
-
+            <h2>Precipitation, snowfall and snow depth</h2>
             <p id="rangeText"></p>
-
             <div id="precipitation"></div>
         </section>
 
-        <!-- Project documentation -->
         <section class="panel">
             <h2>About this visualization</h2>
 
@@ -91,19 +87,21 @@
             <p>
                 <strong>Design:</strong>
                 Two station-specific temperature lines and grouped
-                precipitation bars support comparison. State and
-                station dropdowns filter records; hover reveals
-                details; brushing the temperature chart filters
-                precipitation totals.
+                precipitation/snow bars support comparison.
+                State and station dropdowns filter records;
+                hover reveals details; brushing the temperature chart
+                zooms into dates and filters the lower chart.
             </p>
 
             <p>
                 <strong>Data handling:</strong>
-                We retain all available stations. Duplicate readings
-                for the same state, station and date are averaged
-                per measurement to avoid counting precipitation twice.
-                Missing measurements are excluded. The supplied
-                values are Fahrenheit and inches.
+                The supplied measurements use Fahrenheit and inches.
+                Daily average temperature is calculated from minimum
+                and maximum temperatures. Precipitation and snowfall
+                are summed over each period; snow depth is averaged
+                over available readings because it measures snow on
+                the ground rather than new snowfall.
+                Missing values are excluded, not treated as zero.
             </p>
 
             <p>
@@ -124,17 +122,11 @@
             </p>
         </section>
 
-        <!-- Tooltip -->
         <div id="tooltip" role="status"></div>
-
     </main>
 
-    <!-- Load D3.js -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
-
-    <!-- Load visualization JavaScript -->
     <script src="./js/script.js"></script>
-
 </body>
 
 </html>
