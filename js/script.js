@@ -1,10 +1,10 @@
 
-// CMSC471 Assignment 1 — U.S. Weather Explorer
+ // CMSC471 Assignment 1 — U.S. Weather Explorer
 
 const margin = { top: 35, right: 22, bottom: 48, left: 65 };
-const W = 1000, H = 360;
-const innerW = W - margin.left - margin.right;
-const innerH = H - margin.top - margin.bottom;
+const svgWidth = 1000, svgHeight = 360;
+const innerW = svgWidth - margin.left - margin.right;
+const innerH = svgHeight - margin.top - margin.bottom;
 
 const palette = ['#2468ad', '#e07a32'];
 const key = (state, station) => JSON.stringify([state, station]);
@@ -26,7 +26,7 @@ let selectedRange = null;
 function createChart(selector) {
     const root = d3.select(selector)
         .append('svg')
-        .attr('viewBox', `0 0 ${W} ${H}`)
+        .attr('viewBox', `0 0 ${svgWidth} ${svgHeight}`)
         .append('g')
         .attr('transform', `translate(${margin.left},${margin.top})`);
 
@@ -96,10 +96,32 @@ function resetDateSelection() {
 }
 
 
-function updateVis() {
-    const metric = d3.select('#metric').property('value');
+// Update the temperature axes and grid.
+function updateTempAxes(x, y, ticks, tickFormat) {
+    tempChart.select('.x-axis')
+        .call(
+            d3.axisBottom(x)
+                .tickValues(ticks)
+                .tickFormat(tickFormat)
+        );
 
-    // Update legends for both graphs
+    tempChart.select('.y-axis')
+        .call(d3.axisLeft(y));
+
+    tempChart.select('.grid')
+        .call(
+            d3.axisBottom(x)
+                .tickValues(ticks)
+                .tickSize(-innerH)
+                .tickFormat('')
+        );
+
+    tempChart.select('.ylabel')
+        .text('Temperature (°F)');
+}
+
+// Update the station names and colors above both charts.
+function updateLegend() {
     const selectedStations = selections();
 
     ['#tempLegend', '#rainLegend'].forEach(selector => {
@@ -118,6 +140,13 @@ function updateVis() {
         items.append('span')
             .text(d => `${d.station} (${d.state})`);
     });
+}
+
+function updateVis() {
+    const metric = d3.select('#metric').property('value');
+
+    updateLegend();
+    const selectedStations = selections();
 
     // Update temperature chart title
     const tempTitles = {
@@ -188,26 +217,7 @@ function updateVis() {
         tickFormat = monthFmt;
     }
 
-    tempChart.select('.x-axis')
-        .call(
-            d3.axisBottom(x)
-                .tickValues(ticks)
-                .tickFormat(tickFormat)
-        );
-
-    tempChart.select('.y-axis')
-        .call(d3.axisLeft(y));
-
-    tempChart.select('.grid')
-        .call(
-            d3.axisBottom(x)
-                .tickValues(ticks)
-                .tickSize(-innerH)
-                .tickFormat('')
-        );
-
-    tempChart.select('.ylabel')
-        .text('Temperature (°F)');
+    updateTempAxes(x, y, ticks, tickFormat);
 
     const line = d3.line()
         .defined(d => Number.isFinite(d[metric]))
@@ -326,6 +336,36 @@ function updateVis() {
     updatePrecip();
 }
 
+
+// Update the precipitation axes and grid.
+function updateRainAxes(x0, y, ticks, labelFormat, metric, name) {
+    rainChart.select('.x-axis')
+        .call(
+            d3.axisBottom(x0)
+                .tickValues(ticks)
+                .tickFormat(d =>
+                    labelFormat(new Date(d))
+                )
+        );
+
+    rainChart.select('.y-axis')
+        .call(d3.axisLeft(y));
+
+    rainChart.select('.grid')
+        .call(
+            d3.axisBottom(x0)
+                .tickValues(ticks)
+                .tickSize(-innerH)
+                .tickFormat('')
+        );
+
+    const axisLabel = metric === 'SNWD'
+        ? 'Average snow depth (in)'
+        : `Total ${name.toLowerCase()} (in)`;
+
+    rainChart.select('.ylabel')
+        .text(axisLabel);
+}
 
 function updatePrecip() {
     const metric = d3.select('#rainMetric').property('value');
@@ -457,32 +497,7 @@ function updatePrecip() {
         ? dayFmt
         : monthFmt;
 
-    rainChart.select('.x-axis')
-        .call(
-            d3.axisBottom(x0)
-                .tickValues(ticks)
-                .tickFormat(d =>
-                    labelFormat(new Date(d))
-                )
-        );
-
-    rainChart.select('.y-axis')
-        .call(d3.axisLeft(y));
-
-    rainChart.select('.grid')
-        .call(
-            d3.axisBottom(x0)
-                .tickValues(ticks)
-                .tickSize(-innerH)
-                .tickFormat('')
-        );
-
-    const axisLabel = metric === 'SNWD'
-        ? 'Average snow depth (in)'
-        : `Total ${name.toLowerCase()} (in)`;
-
-    rainChart.select('.ylabel')
-        .text(axisLabel);
+    updateRainAxes(x0, y, ticks, labelFormat, metric, name);
 
     rainChart.select('.marks')
         .selectAll('rect')
@@ -560,6 +575,32 @@ function populateStations(side, preferred) {
             ? preferred
             : stations[0]
     );
+}
+
+// Attach the dropdown and button interactions (Lab 4-5 pattern).
+function setupSelector() {
+    for (const side of ['A', 'B']) {
+        d3.select('#state' + side)
+            .on('change', () => {
+                populateStations(side);
+                resetDateSelection();
+            });
+
+        d3.select('#station' + side)
+            .on('change', resetDateSelection);
+    }
+
+    d3.select('#metric')
+        .on('change', updateVis);
+
+    d3.select('#rainMetric')
+        .on('change', () => {
+            hideTip();
+            updatePrecip();
+        });
+
+    d3.select('#reset')
+        .on('click', resetDateSelection);
 }
 
 function init() {
@@ -656,28 +697,7 @@ function init() {
                 'SAN JUAN L M MARIN AP'
             );
 
-            for (const side of ['A', 'B']) {
-                d3.select('#state' + side)
-                    .on('change', () => {
-                        populateStations(side);
-                        resetDateSelection();
-                    });
-
-                d3.select('#station' + side)
-                    .on('change', resetDateSelection);
-            }
-
-            d3.select('#metric')
-                .on('change', updateVis);
-
-            d3.select('#rainMetric')
-                .on('change', () => {
-                    hideTip();
-                    updatePrecip();
-                });
-
-            d3.select('#reset')
-                .on('click', resetDateSelection);
+            setupSelector();
 
             updateVis();
         })
