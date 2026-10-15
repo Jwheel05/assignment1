@@ -1,132 +1,505 @@
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+/* GLOBAL STYLES */
+
+:root {
+    --navy: #173c66;
+    --blue: #2468ad;
+    --orange: #e07a32;
+    --background: #f1f5fa;
+    --surface: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+}
+
 * {
-    box-sizing: border-box
+    box-sizing: border-box;
 }
 
 body {
     margin: 0;
-    background: #f3f6fb;
-    color: #18263a;
-    font: 15px system-ui, Arial, sans-serif
+    background: var(--background);
+    color: var(--text);
+    font: 15px 'DM Sans', Arial, sans-serif;
+    line-height: 1.6;
 }
 
 .container {
-    max-width: 1120px;
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 30px 18px 60px
+    padding: 30px 20px 60px;
+}
+
+/* HEADER */
+
+header {
+    background: linear-gradient(120deg, #173c66, #2468ad);
+    color: white;
+    padding: 44px;
+    border-radius: 20px;
+    margin-bottom: 28px;
+    box-shadow: 0 8px 24px rgba(23, 60, 102, 0.12);
+}
+
+.header-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #b9d9f7;
+    margin-bottom: 12px;
 }
 
 h1 {
-    font-size: 2.2rem;
-    margin-bottom: 6px
+    font-size: clamp(30px, 4vw, 44px);
+    font-weight: 800;
+    letter-spacing: -1.2px;
+    margin: 0 0 12px;
+    line-height: 1.2;
 }
 
-header p,
-.panel p {
-    color: #53657c;
-    line-height: 1.5
+header p {
+    max-width: 670px;
+    color: #dce9f8;
+    margin: 0;
+    font-size: 15px;
 }
 
-.controls,
-.panel {
+/* STATION SELECTION PANEL */
+
+.controls-panel {
     background: white;
-    border: 1px solid #dce4ef;
-    border-radius: 12px;
-    padding: 20px;
-    margin: 18px 0;
-    box-shadow: 0 2px 10px #14273b08
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 28px;
+    margin-bottom: 26px;
+    box-shadow: 0 4px 16px rgba(23, 60, 102, 0.05);
 }
+
+.section-heading h2 {
+    color: var(--navy);
+    font-size: 21px;
+    margin: 0 0 5px;
+}
+
+.section-heading p {
+    color: var(--muted);
+    font-size: 14px;
+    margin: 0 0 22px;
+}
+
+/* STATION CARDS */
 
 .controls {
-    display: flex;
-    gap: 18px;
-    align-items: end;
-    flex-wrap: wrap
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
 }
 
-.controls label {
+.station-group {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    font-weight: 600
-}
-
-.controls select,
-.controls button {
-    padding: 10px;
-    border: 1px solid #b9c8d8;
-    border-radius: 7px;
-    background: white;
-    min-width: 175px
-}
-
-.controls button {
+    gap: 8px;
+    padding: 22px;
+    border-radius: 14px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
     min-width: 0;
+}
+
+.station-a {
+    border-top: 4px solid var(--blue);
+}
+
+.station-b {
+    border-top: 4px solid var(--orange);
+}
+
+.station-group h3 {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    color: var(--navy);
+    margin: 0 0 12px;
+}
+
+.station-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.indicator-a {
+    background: var(--blue);
+}
+
+.indicator-b {
+    background: var(--orange);
+}
+
+.station-group label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.station-group select {
+    width: 100%;
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid #d6e0ec;
+    border-radius: 10px;
+    background: white;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    margin-bottom: 12px;
     cursor: pointer;
-    background: #e9f0fb
+    transition: border-color 0.2s;
 }
 
-h2 {
-    margin: 0 0 8px
+.station-group select:hover {
+    border-color: var(--blue);
 }
 
-svg {
+.station-group select:focus {
+    outline: 3px solid rgba(36, 104, 173, 0.15);
+    border-color: var(--blue);
+}
+
+/* RESET BUTTON */
+
+.controls-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 22px;
+}
+
+#reset {
+    background: var(--navy);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 20px;
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+#reset:hover {
+    background: var(--blue);
+    transform: translateY(-2px);
+}
+
+/* GRAPH PANELS */
+
+.panel {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 30px;
+    margin-bottom: 26px;
+    box-shadow: 0 4px 16px rgba(23, 60, 102, 0.05);
+}
+
+.chart-category {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    color: var(--blue);
+    margin-bottom: 8px;
+}
+
+.chart-heading h2,
+.panel h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--navy);
+    margin: 0 0 8px;
+    letter-spacing: -0.4px;
+}
+
+/* GRAPH DROPDOWNS */
+
+.chart-toolbar {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 20px 0 12px;
+}
+
+.chart-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 280px;
+    max-width: 100%;
+}
+
+.chart-controls label {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--muted);
+}
+
+.chart-controls select {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid #d6e0ec;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.chart-controls select:hover {
+    border-color: var(--blue);
+    background: white;
+}
+
+.chart-controls select:focus {
+    outline: 3px solid rgba(36, 104, 173, 0.15);
+    border-color: var(--blue);
+}
+
+.chart-hint {
+    color: var(--muted);
+    font-size: 12px;
+    padding-bottom: 10px;
+}
+
+/* LARGE GRAPHS */
+
+.chart-area {
+    width: 100%;
+    min-width: 0;
+}
+
+#temperature,
+#precipitation {
+    width: 100%;
+    overflow: hidden;
+}
+
+#temperature svg,
+#precipitation svg {
     display: block;
     width: 100%;
-    height: auto
+    height: auto;
 }
 
+/* D3 AXES */
+
 .axis text {
-    fill: #53657c
+    fill: var(--muted);
+    font-family: 'DM Sans', Arial, sans-serif;
+    font-size: 12px;
 }
 
 .axis path,
 .axis line {
-    stroke: #a5b3c4
+    stroke: #cbd5e1;
 }
 
 .grid line {
-    stroke: #e7edf5
+    stroke: #e7edf5;
+    stroke-dasharray: 4 4;
 }
 
 .grid path {
-    display: none
+    display: none;
 }
 
-.brush .selection {
-    fill: #5c83d6;
-    fill-opacity: .17;
-    stroke: #5c83d6
+.ylabel {
+    fill: var(--muted);
+    font-size: 12px;
 }
+
+/* TEMPERATURE GRAPH */
+
+.trend {
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.series circle {
+    transition: opacity 0.15s ease;
+}
+
+/* PRECIPITATION GRAPH */
+
+#precipitation rect {
+    transition: opacity 0.15s ease;
+}
+
+#precipitation rect:hover {
+    opacity: 0.75;
+}
+
+/* DATE BRUSHING */
+
+.brush .selection {
+    fill: var(--blue);
+    fill-opacity: 0.15;
+    stroke: var(--blue);
+}
+
+/* GRAPH NOTES */
+
+.chart-note {
+    margin: 14px 0 0;
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+#rangeText {
+    font-size: 13px;
+    color: var(--muted);
+    margin: 12px 0;
+}
+
+/* TOOLTIPS */
 
 #tooltip {
     display: none;
     position: fixed;
     pointer-events: none;
-    background: #162a42;
+    background: var(--navy);
     color: white;
-    padding: 9px 12px;
-    border-radius: 8px;
-    z-index: 10;
+    border: 1px solid #315a85;
+    border-radius: 12px;
+    padding: 14px 18px;
     font-size: 13px;
-    line-height: 1.5
+    line-height: 1.7;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+    z-index: 1000;
+    max-width: 240px;
+}
+
+#tooltip strong {
+    color: white;
+}
+
+/* ABOUT SECTION */
+
+.about-panel {
+    padding: 30px;
+}
+
+.about-panel p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.8;
+    margin-bottom: 16px;
+}
+
+.about-panel strong {
+    color: var(--navy);
 }
 
 a {
-    color: #235ba5
+    color: var(--blue);
+    font-weight: 600;
+    text-decoration: none;
 }
 
-/* Temperature and precipitation hover tooltip */
-#tooltip {
-    position: fixed;
-    display: none;
-    background: white;
-    color: #222;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 14px;
-    line-height: 1.6;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    pointer-events: none;
-    z-index: 1000;
+a:hover {
+    text-decoration: underline;
+}
+
+/* MOBILE RESPONSIVENESS */
+
+@media (max-width: 700px) {
+
+    .container {
+        width: 95%;
+        padding: 12px 0 40px;
+    }
+
+    header {
+        padding: 28px 22px;
+    }
+
+    .controls-panel {
+        padding: 20px;
+    }
+
+    .controls {
+        grid-template-columns: 1fr;
+    }
+
+    .station-group {
+        padding: 18px;
+    }
+
+    .controls-footer {
+        justify-content: stretch;
+    }
+
+    #reset {
+        width: 100%;
+    }
+
+    .panel {
+        padding: 20px 12px;
+    }
+
+    .panel h2 {
+        font-size: 18px;
+    }
+
+    .chart-toolbar {
+        align-items: stretch;
+    }
+
+    .chart-controls {
+        width: 100%;
+    }
+
+    .chart-hint {
+        padding-bottom: 0;
+    }
+}
+
+/* GRAPH LEGENDS */
+
+.chart-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin: 16px 0 12px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    flex-shrink: 0;
 }

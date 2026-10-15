@@ -1,137 +1,274 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>U.S. Weather Explorer | CMSC471</title>
+
     <link rel="stylesheet" href="./css/styles.css">
 </head>
 
 <body>
     <main class="container">
 
+        <!-- HEADER -->
         <header>
-            <h1>U.S. Weather Explorer</h1>
-            <p>
-                Compare actual weather stations by state or territory,
-                using the course's 2017 observations.
-            </p>
+            <div class="header-content">
+                <div class="header-label">CMSC471 | WEATHER ANALYTICS</div>
+
+                <h1>U.S. Weather Explorer</h1>
+
+                <p>
+                    Explore and compare historical weather observations
+                    from stations across the United States.
+                    Discover temperature and precipitation patterns
+                    throughout 2017.
+                </p>
+            </div>
         </header>
 
-        <section class="controls">
-            <label>
-                State / territory A
-                <select id="stateA"></select>
-            </label>
+        <!-- STATION SELECTION -->
+        <section class="controls-panel">
 
-            <label>
-                Station A
-                <select id="stationA"></select>
-            </label>
+            <div class="section-heading">
+                <h2>Compare Weather Stations</h2>
+                <p>
+                    Choose two locations to compare their weather patterns.
+                </p>
+            </div>
 
-            <label>
-                State / territory B
-                <select id="stateB"></select>
-            </label>
+            <div class="controls">
 
-            <label>
-                Station B
-                <select id="stationB"></select>
-            </label>
+                <div class="station-group station-a">
+                    <h3>
+                        <span class="station-indicator indicator-a"></span>
+                        Station A
+                    </h3>
 
-            <label>
-                Temperature
-                <select id="metric">
-                    <option value="TMAX">Daily maximum (°F)</option>
-                    <option value="TMIN">Daily minimum (°F)</option>
-                    <option value="TAVG">Daily average (°F)</option>
-                </select>
-            </label>
+                    <label for="stateA">
+                        State / Territory
+                    </label>
+                    <select id="stateA"></select>
 
-            <label>
-                Precipitation / Snow
-                <select id="rainMetric">
-                    <option value="PRCP">Precipitation (in)</option>
-                    <option value="SNOW">Snowfall (in)</option>
-                    <option value="SNWD">Snow depth (in)</option>
-                </select>
-            </label>
+                    <label for="stationA">
+                        Weather Station
+                    </label>
+                    <select id="stationA"></select>
+                </div>
 
-            <button id="reset">Reset date selection</button>
+                <div class="station-group station-b">
+                    <h3>
+                        <span class="station-indicator indicator-b"></span>
+                        Station B
+                    </h3>
+
+                    <label for="stateB">
+                        State / Territory
+                    </label>
+                    <select id="stateB"></select>
+
+                    <label for="stationB">
+                        Weather Station
+                    </label>
+                    <select id="stationB"></select>
+                </div>
+
+            </div>
+
+            <div class="controls-footer">
+                <button id="reset" type="button">
+                    Reset Date Selection
+                </button>
+            </div>
+
         </section>
 
+        <!-- TEMPERATURE GRAPH -->
         <section class="panel">
-            <h2 id="tempTitle">Daily Maximum Temperature (°F)</h2>
-            <p>
-                Drag across an empty area of the chart to select dates
-                and zoom in. Hover over points for details.
-                Use "Reset date selection" to return to the full view.
+
+            <div class="chart-heading">
+                <div>
+                    <div class="chart-category">
+                        TEMPERATURE ANALYSIS
+                    </div>
+
+                    <h2 id="tempTitle">
+                        Daily Maximum Temperature (°F)
+                    </h2>
+                </div>
+            </div>
+
+            <div class="chart-toolbar">
+
+                <div class="chart-controls">
+                    <label for="metric">
+                        Temperature Measurement
+                    </label>
+
+                    <select id="metric">
+                        <option value="TMAX">
+                            Daily Maximum (°F)
+                        </option>
+
+                        <option value="TMIN">
+                            Daily Minimum (°F)
+                        </option>
+
+                        <option value="TAVG">
+                            Daily Average (°F)
+                        </option>
+                    </select>
+                </div>
+
+                <div class="chart-hint">
+                    Drag to zoom · Hover for details
+                </div>
+
+            </div>
+
+            <div class="chart-legend" id="tempLegend"></div>
+            <div class="chart-area" id="temperature"></div>
+
+            <p class="chart-note">
+                Drag across an empty area of the graph to select
+                a date range. The precipitation graph will update
+                automatically. Use Reset Date Selection to
+                return to the full view.
             </p>
-            <div id="temperature"></div>
+
         </section>
 
+        <!-- PRECIPITATION GRAPH -->
         <section class="panel">
-            <h2 id="rainTitle">Monthly Precipitation Totals (in)</h2>
+
+            <div class="chart-heading">
+                <div>
+                    <div class="chart-category">
+                        PRECIPITATION ANALYSIS
+                    </div>
+
+                    <h2 id="rainTitle">
+                        Monthly Precipitation Totals (in)
+                    </h2>
+                </div>
+            </div>
+
+            <div class="chart-toolbar">
+
+                <div class="chart-controls">
+                    <label for="rainMetric">
+                        Precipitation Measurement
+                    </label>
+
+                    <select id="rainMetric">
+                        <option value="PRCP">
+                            Precipitation (in)
+                        </option>
+
+                        <option value="SNOW">
+                            Snowfall (in)
+                        </option>
+                    </select>
+                </div>
+
+                <div class="chart-hint">
+                    Hover over bars for details
+                </div>
+
+            </div>
+
             <p id="rangeText"></p>
-            <div id="precipitation"></div>
+
+            <div class="chart-legend" id="rainLegend"></div>
+            <div class="chart-area" id="precipitation"></div>
+
         </section>
 
-        <section class="panel">
-            <h2>About this visualization</h2>
+        <!-- ABOUT SECTION -->
+        <section class="panel about-panel">
+
+            <div class="chart-category">
+                PROJECT INFORMATION
+            </div>
+
+            <h2>About This Visualization</h2>
 
             <p>
                 <strong>Dataset:</strong>
                 CMSC471's Daily Weather in the U.S., 2017,
-                sourced from NOAA GHCN. States and actual station
-                names come directly from the original file,
-                including Puerto Rico and Guam.
+                sourced from NOAA GHCN. States and actual
+                station names come directly from the original
+                file, including Puerto Rico and Guam.
             </p>
 
             <p>
                 <strong>Design:</strong>
-                Two station-specific temperature lines and grouped
-                precipitation/snow bars support comparison.
-                State and station dropdowns filter records;
-                hover reveals details; brushing the temperature chart
-                zooms into dates and filters the lower chart.
+                Two station-specific temperature lines and
+                grouped precipitation/snowfall bars allow
+                users to compare weather patterns across
+                different locations. State and station
+                dropdowns filter the observations, while
+                interactive tooltips provide additional
+                details about each measurement.
             </p>
 
             <p>
-                <strong>Data handling:</strong>
-                The supplied measurements use Fahrenheit and inches.
-                Daily average temperature is calculated from minimum
-                and maximum temperatures. Precipitation and snowfall
-                are summed over each period; snow depth is averaged
-                over available readings because it measures snow on
-                the ground rather than new snowfall.
-                Missing values are excluded, not treated as zero.
+                <strong>Interactions:</strong>
+                Users can switch between daily maximum,
+                minimum, and average temperatures.
+                They can also compare precipitation and
+                snowfall totals. Brushing the temperature
+                graph selects a date range and updates
+                the precipitation graph accordingly.
+            </p>
+
+            <p>
+                <strong>Data Handling:</strong>
+                Temperature measurements use Fahrenheit,
+                while precipitation and snowfall use inches.
+                Daily average temperature is calculated
+                using minimum and maximum temperatures.
+                Precipitation and snowfall are summed
+                over the selected period. Missing values
+                are excluded from calculations.
             </p>
 
             <p>
                 <strong>Sources:</strong>
-                <a href="https://zcliu.github.io/teaching/CMSC471/assignments/weather.csv">
-                    Course weather CSV
+
+                <a href="https://zcliu.github.io/teaching/CMSC471/assignments/weather.csv"
+                   target="_blank" rel="noopener noreferrer">
+                    Course Weather CSV
                 </a>
+
                 ·
-                <a href="https://zcliu.github.io/teaching/CMSC471/assignments/weather.txt">
-                    Column descriptions
-                </a>.
+
+                <a href="https://zcliu.github.io/teaching/CMSC471/assignments/weather.txt"
+                   target="_blank" rel="noopener noreferrer">
+                    Column Descriptions
+                </a>
             </p>
 
             <p>
-                <strong>Before submitting:</strong>
+                <strong>Before Submitting:</strong>
                 Add your team's alternative design choices,
-                development time, contributions, and AI-use disclosure.
+                development time, individual contributions,
+                and AI-use disclosure.
             </p>
+
         </section>
 
+        <!-- TOOLTIP -->
         <div id="tooltip" role="status"></div>
 
     </main>
 
+    <!-- SCRIPTS -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="./js/script.js"></script>
-</body>
 
+</body>
 </html>

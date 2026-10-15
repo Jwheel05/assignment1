@@ -95,8 +95,29 @@ function resetDateSelection() {
     updateVis();
 }
 
+
 function updateVis() {
     const metric = d3.select('#metric').property('value');
+
+    // Update legends for both graphs
+    const selectedStations = selections();
+
+    ['#tempLegend', '#rainLegend'].forEach(selector => {
+        const items = d3.select(selector)
+            .selectAll('.legend-item')
+            .data(selectedStations)
+            .join('div')
+            .attr('class', 'legend-item');
+
+        items.selectAll('*').remove();
+
+        items.append('span')
+            .attr('class', 'legend-color')
+            .style('background-color', d => d.color);
+
+        items.append('span')
+            .text(d => `${d.station} (${d.state})`);
+    });
 
     // Update temperature chart title
     const tempTitles = {
@@ -114,7 +135,7 @@ function updateVis() {
 
     const [start, end] = x.domain();
 
-    const series = selections().map(s => ({
+    const series = selectedStations.map(s => ({
         ...s,
         values: (
             byStation.get(key(s.state, s.station)) || []
@@ -304,6 +325,7 @@ function updateVis() {
 
     updatePrecip();
 }
+
 
 function updatePrecip() {
     const metric = d3.select('#rainMetric').property('value');
