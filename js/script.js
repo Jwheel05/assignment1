@@ -55,11 +55,19 @@ const tempChart = createChart('#temperature');
 const rainChart = createChart('#precipitation');
 
 function selections() {
-    return ['A', 'B'].map((side, i) => ({
-        state: d3.select('#state' + side).property('value'),
-        station: d3.select('#station' + side).property('value'),
-        color: palette[i]
-    }));
+    let a = {
+        state: d3.select('#stateA').property('value'),
+        station: d3.select('#stationA').property('value'),
+        color: palette[0]
+    };
+
+    let b = {
+        state: d3.select('#stateB').property('value'),
+        station: d3.select('#stationB').property('value'),
+        color: palette[1]
+    };
+
+    return [a, b];
 }
 
 function showTip(event, html) {
@@ -71,18 +79,12 @@ function showTip(event, html) {
 }
 
 function moveTip(event) {
+    let x = Math.max(8, Math.min(event.clientX + 15, window.innerWidth - 230));
+    let y = Math.max(8, event.clientY - 80);
+
     tooltip
-        .style(
-            'left',
-            Math.max(
-                8,
-                Math.min(event.clientX + 15, window.innerWidth - 230)
-            ) + 'px'
-        )
-        .style(
-            'top',
-            Math.max(8, event.clientY - 80) + 'px'
-        );
+        .style('left', x + 'px')
+        .style('top', y + 'px');
 }
 
 function hideTip() {
@@ -122,23 +124,23 @@ function updateTempAxes(x, y, ticks, tickFormat) {
 
 // Update the station names and colors above both charts.
 function updateLegend() {
-    const selectedStations = selections();
+    let stations = selections();
 
     ['#tempLegend', '#rainLegend'].forEach(selector => {
-        const items = d3.select(selector)
+        let legend = d3.select(selector)
             .selectAll('.legend-item')
-            .data(selectedStations)
+            .data(stations)
             .join('div')
             .attr('class', 'legend-item');
 
-        items.selectAll('*').remove();
+        legend.html('');
 
-        items.append('span')
+        legend.append('span')
             .attr('class', 'legend-color')
             .style('background-color', d => d.color);
 
-        items.append('span')
-            .text(d => `${d.station} (${d.state})`);
+        legend.append('span')
+            .text(d => d.station + ' (' + d.state + ')');
     });
 }
 
@@ -164,15 +166,16 @@ function updateVis() {
 
     const [start, end] = x.domain();
 
-    const series = selectedStations.map(s => ({
-        ...s,
-        values: (
-            byStation.get(key(s.state, s.station)) || []
-        ).filter(d =>
-            d.date >= start &&
-            d.date <= end
-        )
-    }));
+    const series = selectedStations.map(s => {
+        let values = byStation.get(key(s.state, s.station)) || [];
+
+        values = values.filter(d => d.date >= start && d.date <= end);
+
+        return {
+            ...s,
+            values: values
+        };
+    });
 
     const valid = series
         .flatMap(s => s.values)
@@ -429,43 +432,42 @@ function updatePrecip() {
         periods = months;
     }
 
-    const bars = periods.flatMap(period =>
-        selected.map((s, i) => {
-            const rows = (
-                byStation.get(key(s.state, s.station)) || []
-            ).filter(d => {
-                const inRange =
-                    d.date >= start &&
-                    d.date <= end;
+    const bars = periods.flatMap(period => {
+        return selected.map((s, i) => {
+            let rows = byStation.get(key(s.state, s.station)) || [];
 
-                const samePeriod = dailyMode
+            rows = rows.filter(d => {
+                let samePeriod = dailyMode
                     ? +d3.timeDay.floor(d.date) === +period
                     : +d3.timeMonth.floor(d.date) === +period;
 
-                return inRange &&
+                return d.date >= start &&
+                    d.date <= end &&
                     samePeriod &&
                     Number.isFinite(d[metric]);
             });
 
             let value = 0;
 
-            if (rows.length) {
-                value = metric === 'SNWD'
-                    ? d3.mean(rows, d => d[metric])
-                    : d3.sum(rows, d => d[metric]);
+            if (rows.length > 0) {
+                if (metric === 'SNWD') {
+                    value = d3.mean(rows, d => d[metric]);
+                } else {
+                    value = d3.sum(rows, d => d[metric]);
+                }
             }
 
             return {
-                i,
+                i: i,
                 station: s.station,
                 state: s.state,
                 color: s.color,
-                period,
-                value,
+                period: period,
+                value: value,
                 count: rows.length
             };
-        })
-    );
+        });
+    });
 
     const x0 = d3.scaleBand()
         .domain(periods.map(d => +d))
@@ -608,11 +610,11 @@ function init() {
         const TMIN = d.TMIN === '' ? NaN : +d.TMIN;
         const TMAX = d.TMAX === '' ? NaN : +d.TMAX;
 
-        const TAVG =
-            Number.isFinite(TMIN) &&
-                Number.isFinite(TMAX)
-                ? (TMIN + TMAX) / 2
-                : NaN;
+        let TAVG = NaN;
+
+        if (Number.isFinite(TMIN) && Number.isFinite(TMAX)) {
+            TAVG = (TMIN + TMAX) / 2;
+        }
 
         return {
             state: d.state,
@@ -640,32 +642,23 @@ function init() {
         };
     })
         .then(data => {
-            const allData = data.filter(d => d.date);
+            let allData = data.filter(d => d.date);
 
-            const states = [
-                ...new Set(allData.map(d => d.state))
-            ].sort();
+            let states = [...new Set(allData.map(d => d.state))].sort();
 
             byState = d3.rollup(
                 allData,
-                v => [
-                    ...new Set(v.map(d => d.station))
-                ].sort(),
+                v => [...new Set(v.map(d => d.station))].sort(),
                 d => d.state
             );
 
-            byStation = d3.group(
-                allData,
-                d => key(d.state, d.station)
-            );
+            byStation = d3.group(allData, d => key(d.state, d.station));
 
-            for (const values of byStation.values()) {
-                values.sort((a, b) =>
-                    a.date - b.date
-                );
+            for (let values of byStation.values()) {
+                values.sort((a, b) => a.date - b.date);
             }
 
-            for (const side of ['A', 'B']) {
+            for (let side of ['A', 'B']) {
                 d3.select('#state' + side)
                     .selectAll('option')
                     .data(states)
@@ -674,33 +667,19 @@ function init() {
                     .text(d => d);
             }
 
-            d3.select('#stateA')
-                .property(
-                    'value',
-                    states.includes('MD')
-                        ? 'MD'
-                        : states[0]
-                );
+            let stateA = states.includes('MD') ? 'MD' : states[0];
+            let stateB = states.includes('PR') ? 'PR' : states[1] || states[0];
 
-            d3.select('#stateB')
-                .property(
-                    'value',
-                    states.includes('PR')
-                        ? 'PR'
-                        : states[1] || states[0]
-                );
+            d3.select('#stateA').property('value', stateA);
+            d3.select('#stateB').property('value', stateB);
 
             populateStations('A');
-
-            populateStations(
-                'B',
-                'SAN JUAN L M MARIN AP'
-            );
+            populateStations('B', 'SAN JUAN L M MARIN AP');
 
             setupSelector();
-
             updateVis();
         })
+        
         .catch(error => {
             console.error(error);
 
